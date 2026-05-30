@@ -83,6 +83,8 @@ class Subtask:
     acceptance_criteria: list[str]
     risk_level: str
     worker_type: str | None = None
+    depends_on: list[str] = field(default_factory=list)
+    can_parallel: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -93,7 +95,23 @@ class Subtask:
             "acceptance_criteria": list(self.acceptance_criteria),
             "risk_level": self.risk_level,
             "worker_type": self.worker_type,
+            "depends_on": list(self.depends_on),
+            "can_parallel": self.can_parallel,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Subtask":
+        return cls(
+            id=str(data.get("id") or ""),
+            objective=str(data.get("objective") or ""),
+            input_context=str(data.get("input_context") or ""),
+            expected_output=str(data.get("expected_output") or ""),
+            acceptance_criteria=[str(item) for item in data.get("acceptance_criteria") or []],
+            risk_level=str(data.get("risk_level") or "medium"),
+            worker_type=str(data.get("worker_type") or "") or None,
+            depends_on=[str(item) for item in data.get("depends_on") or []],
+            can_parallel=bool(data.get("can_parallel", True)),
+        )
 
 
 @dataclass
@@ -117,6 +135,18 @@ class EvaluationResult:
             "notes": self.notes,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "EvaluationResult":
+        return cls(
+            passed=bool(data.get("passed", False)),
+            score=float(data.get("score", 0.0)),
+            missing_steps=[str(item) for item in data.get("missing_steps") or []],
+            contradictions=[str(item) for item in data.get("contradictions") or []],
+            unsafe_actions=[str(item) for item in data.get("unsafe_actions") or []],
+            unclear_assumptions=[str(item) for item in data.get("unclear_assumptions") or []],
+            notes=str(data.get("notes") or ""),
+        )
+
 
 @dataclass
 class WorkerOutput:
@@ -139,6 +169,18 @@ class WorkerOutput:
             "revision_used": self.revision_used,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "WorkerOutput":
+        return cls(
+            subtask=Subtask.from_dict(data.get("subtask") or {}),
+            worker_type=str(data.get("worker_type") or "researcher"),
+            provider=str(data.get("provider") or ""),
+            model=str(data.get("model") or ""),
+            output=str(data.get("output") or ""),
+            evaluation=EvaluationResult.from_dict(data.get("evaluation") or {}),
+            revision_used=bool(data.get("revision_used", False)),
+        )
+
 
 @dataclass
 class WorkflowRun:
@@ -149,16 +191,22 @@ class WorkflowRun:
     worker_outputs: list[WorkerOutput]
     final_response: str
     log_path: Path
+    status: str = "completed"
+    state_path: Path | None = None
+    codex_plan: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "run_id": self.run_id,
             "original_request": self.original_request,
+            "status": self.status,
             "analysis": self.analysis.to_dict(),
             "subtasks": [item.to_dict() for item in self.subtasks],
             "worker_outputs": [item.to_dict() for item in self.worker_outputs],
             "final_response": self.final_response,
             "log_path": str(self.log_path),
+            "state_path": str(self.state_path) if self.state_path else "",
+            "codex_plan": self.codex_plan,
         }
 
 
@@ -169,6 +217,10 @@ class AgentConfig:
     model: str = ""
     prompt: str = ""
     toolsets: list[str] = field(default_factory=list)
+    description: str = ""
+    tools: list[str] = field(default_factory=list)
+    max_turns: int = 15
+    can_write_files: bool = False
 
     @property
     def display_provider(self) -> str:
@@ -204,7 +256,11 @@ class WorkflowConfig:
                 provider=str(item.get("provider") or ""),
                 model=str(item.get("model") or ""),
                 prompt=str(item.get("prompt") or f"prompts/worker_{worker_type}.md"),
-                toolsets=list(item.get("toolsets") or []),
+                toolsets=list(item.get("toolsets") or item.get("tools") or []),
+                description=str(item.get("description") or ""),
+                tools=list(item.get("tools") or item.get("toolsets") or []),
+                max_turns=int(item.get("max_turns") or 15),
+                can_write_files=bool(item.get("can_write_files", False)),
             )
 
         return cls(
@@ -231,6 +287,31 @@ class WorkflowConfig:
     def allow_file_changes(self) -> bool:
         return bool(self.safety.get("allow_file_changes", False))
 
+    @property
+    def parallel_enabled(self) -> bool:
+        return bool(self.execution.get("parallel_enabled", False))
+
+    @property
+    def background_enabled(self) -> bool:
+        return bool(self.execution.get("background_enabled", False))
+
+    @property
+    def allow_background_execution(self) -> bool:
+        value = self.safety.get("allow_background_execution", False)
+        return value is True or str(value).lower() in {"true", "explicit-only"}
+
+    @property
+    def max_concurrency(self) -> int:
+        return max(1, int(self.execution.get("max_concurrency", 2)))
+
+    @property
+    def default_permission_mode(self) -> str:
+        return str(self.execution.get("default_permission_mode") or "read-only")
+
+    @property
+    def state_db(self) -> str:
+        return str(self.execution.get("state_db") or "")
+
 
 def package_root() -> Path:
     return Path(__file__).resolve().parent
@@ -246,13 +327,26 @@ def run_workflow(
     config_path: str | Path | None = None,
     dry_run: bool = False,
     max_subtasks: int | None = None,
+    parallel: bool = False,
+    background: bool = False,
+    codex_plan: bool = False,
+    run_id: str | None = None,
+    resume: bool = False,
 ) -> WorkflowRun:
-    orchestrator = WorkflowOrchestrator(
+    from hermes_cli.workflow.runtime import WorkflowRuntime
+
+    runtime = WorkflowRuntime(
         config=WorkflowConfig.load(config_path),
         dry_run=dry_run,
         max_subtasks=max_subtasks,
+        parallel=parallel,
+        codex_plan=codex_plan,
     )
-    return orchestrator.run(request)
+    if resume:
+        if not run_id:
+            raise WorkflowError("resume requires a run_id.")
+        return runtime.resume(run_id)
+    return runtime.run(request, background=background, run_id=run_id)
 
 
 class TaskAnalyzer:
@@ -544,7 +638,11 @@ class WorkerRunner:
             return self._dry_run_output(subtask, analysis, previous_outputs), provider, model
 
         prompt = self._build_prompt(subtask, analysis, previous_outputs, agent_config)
-        toolsets = agent_config.toolsets if self.config.allow_file_changes else []
+        toolsets = (
+            agent_config.toolsets
+            if self.config.allow_file_changes and agent_config.can_write_files
+            else []
+        )
         try:
             from hermes_cli.oneshot import _run_agent
 
