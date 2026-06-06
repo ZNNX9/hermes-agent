@@ -3162,6 +3162,7 @@ class GatewayRunner:
         *,
         source: Optional[SessionSource] = None,
         session_key: Optional[str] = None,
+        user_message: Optional[str] = None,
     ) -> dict | None:
         """Resolve reasoning effort for a session, honoring session overrides."""
         resolved_session_key = session_key
@@ -3174,7 +3175,54 @@ class GatewayRunner:
         overrides = getattr(self, "_session_reasoning_overrides", {}) or {}
         if resolved_session_key and resolved_session_key in overrides:
             return overrides[resolved_session_key]
-        return self._load_reasoning_config()
+        config = self._load_reasoning_config()
+        if self._message_needs_xhigh_reasoning(user_message, config):
+            return {"enabled": True, "effort": "xhigh"}
+        return config
+
+    @staticmethod
+    def _message_needs_xhigh_reasoning(
+        user_message: Optional[str],
+        base_reasoning_config: Optional[dict],
+    ) -> bool:
+        """Escalate clearly hard/risky turns without overriding explicit disables."""
+        if base_reasoning_config and not base_reasoning_config.get("enabled", True):
+            return False
+        if base_reasoning_config and base_reasoning_config.get("effort") == "xhigh":
+            return False
+
+        text = str(user_message or "").strip().lower()
+        if not text:
+            return False
+
+        high_signal_terms = (
+            "auth", "authentication", "authorization", "security", "privacy",
+            "payment", "billing", "stripe", "firebase rules", "firestore rules",
+            "database migration", "production", "deploy", "rollback", "incident",
+            "data loss", "permission", "credential", "secret", "token",
+            "refactor", "debug", "regression", "root cause", "race condition",
+            "review", "audit", "verify", "carefully", "deep", "hard",
+            "复杂", "困难", "安全", "权限", "生产", "部署", "回滚", "审查", "验证",
+        )
+        if any(term in text for term in high_signal_terms):
+            return True
+
+        code_change_verbs = (
+            "fix", "implement", "add", "change", "modify", "patch", "update",
+            "remove", "rewrite", "migrate",
+        )
+        code_targets = (
+            "repo", "code", "file", "branch", "commit", "test", "typescript",
+            "python", "tsx", "firestore", "firebase", "api", "backend",
+        )
+        if (
+            any(verb in text for verb in code_change_verbs)
+            and any(target in text for target in code_targets)
+        ):
+            return True
+
+        file_path_pattern = r"\b[a-z0-9_./-]+\.(tsx|ts|jsx|js|py|json|yaml|yml|toml|md)\b"
+        return bool(re.search(file_path_pattern, text))
 
     def _set_session_reasoning_override(
         self,
@@ -12651,7 +12699,10 @@ class GatewayRunner:
 
             pr = self._provider_routing
             max_iterations = int(os.getenv("HERMES_MAX_ITERATIONS", "90"))
-            reasoning_config = self._resolve_session_reasoning_config(source=source)
+            reasoning_config = self._resolve_session_reasoning_config(
+                source=source,
+                user_message=prompt,
+            )
             self._reasoning_config = reasoning_config
             self._service_tier = self._load_service_tier()
             turn_route = self._resolve_turn_agent_config(prompt, model, runtime_kwargs)
@@ -17782,6 +17833,7 @@ class GatewayRunner:
             reasoning_config = self._resolve_session_reasoning_config(
                 source=source,
                 session_key=session_key,
+                user_message=message,
             )
             self._reasoning_config = reasoning_config
             self._service_tier = self._load_service_tier()
