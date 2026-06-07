@@ -965,6 +965,34 @@ class APIServerAdapter(BasePlatformAdapter):
     # Agent creation helper
     # ------------------------------------------------------------------
 
+    def _extract_route_request_overrides(
+        self,
+        request: "web.Request",
+        body: Dict[str, Any],
+    ) -> tuple[Optional[str], Optional[str], Optional["web.Response"]]:
+        """Return explicit provider/model routing overrides from headers/body."""
+        provider = (request.headers.get("X-Hermes-Provider", "") or "").strip()
+        model = (request.headers.get("X-Hermes-Model", "") or "").strip()
+        for label, value in (("X-Hermes-Provider", provider), ("X-Hermes-Model", model)):
+            if value and re.search(r'[\r\n\x00]', value):
+                return None, None, web.json_response(
+                    _openai_error(f"Invalid {label} header", code="invalid_route_override"),
+                    status=400,
+                )
+
+        body_model = body.get("model")
+        if not model and body_model is not None:
+            body_model_s = str(body_model).strip()
+            if body_model_s and body_model_s not in {self._model_name, "hermes-agent"}:
+                if re.search(r'[\r\n\x00]', body_model_s):
+                    return None, None, web.json_response(
+                        _openai_error("Invalid model field", code="invalid_route_override"),
+                        status=400,
+                    )
+                model = body_model_s
+
+        return provider or None, model or None, None
+
     def _create_agent(
         self,
         ephemeral_system_prompt: Optional[str] = None,
@@ -974,6 +1002,9 @@ class APIServerAdapter(BasePlatformAdapter):
         tool_start_callback=None,
         tool_complete_callback=None,
         gateway_session_key: Optional[str] = None,
+        user_message: Any = "",
+        requested_provider: Optional[str] = None,
+        requested_model: Optional[str] = None,
     ) -> Any:
         """
         Create an AIAgent instance using the gateway's runtime config.
@@ -991,7 +1022,13 @@ class APIServerAdapter(BasePlatformAdapter):
         — matching the semantics of the native gateway's ``session_key``.
         """
         from run_agent import AIAgent
-        from gateway.run import _resolve_runtime_agent_kwargs, _resolve_gateway_model, _load_gateway_config, GatewayRunner
+        from gateway.run import (
+            _resolve_dynamic_turn_route,
+            _resolve_runtime_agent_kwargs,
+            _resolve_gateway_model,
+            _load_gateway_config,
+            GatewayRunner,
+        )
         from hermes_cli.tools_config import _get_platform_tools
 
         runtime_kwargs = _resolve_runtime_agent_kwargs()
@@ -1006,6 +1043,51 @@ class APIServerAdapter(BasePlatformAdapter):
         # Load fallback provider chain so the API server platform has the
         # same fallback behaviour as Telegram/Discord/Slack (fixes #4954).
         fallback_model = GatewayRunner._load_fallback_model()
+
+        if requested_model:
+            model = requested_model
+        if requested_provider:
+            try:
+                from hermes_cli.runtime_provider import (
+                    format_runtime_provider_error,
+                    resolve_runtime_provider,
+                )
+
+                runtime = resolve_runtime_provider(
+                    requested=requested_provider,
+                    target_model=model,
+                )
+            except Exception as exc:
+                raise RuntimeError(format_runtime_provider_error(exc)) from exc
+
+            runtime_kwargs = dict(runtime_kwargs)
+            runtime_kwargs.update(
+                {
+                    "api_key": runtime.get("api_key"),
+                    "base_url": runtime.get("base_url"),
+                    "provider": runtime.get("provider"),
+                    "api_mode": runtime.get("api_mode"),
+                    "command": runtime.get("command"),
+                    "args": list(runtime.get("args") or []),
+                    "credential_pool": runtime.get("credential_pool"),
+                }
+            )
+
+        if not requested_provider and not requested_model:
+            dynamic_route = _resolve_dynamic_turn_route(user_message, model, runtime_kwargs)
+            if dynamic_route:
+                logger.info(
+                    "[api_server] Gateway dynamic route: task=%s policy=%s model=%s",
+                    dynamic_route.get("task_type"),
+                    dynamic_route.get("route_policy_version"),
+                    dynamic_route.get("model"),
+                )
+                model = str(dynamic_route["model"])
+                runtime_kwargs = dict(dynamic_route["runtime_kwargs"])
+                if "reasoning_config" in dynamic_route:
+                    reasoning_config = dynamic_route["reasoning_config"]
+                if "fallback_model" in dynamic_route:
+                    fallback_model = dynamic_route["fallback_model"]
 
         agent = AIAgent(
             model=model,
@@ -1510,6 +1592,9 @@ class APIServerAdapter(BasePlatformAdapter):
         body, err = await self._read_json_body(request)
         if err:
             return err
+        requested_provider, requested_model, route_override_err = self._extract_route_request_overrides(request, body)
+        if route_override_err is not None:
+            return route_override_err
         user_message, err = _session_chat_user_message(body)
         if err is not None:
             return err
@@ -1523,6 +1608,8 @@ class APIServerAdapter(BasePlatformAdapter):
             ephemeral_system_prompt=system_prompt,
             session_id=session_id,
             gateway_session_key=gateway_session_key,
+            requested_provider=requested_provider,
+            requested_model=requested_model,
         )
         effective_session_id = result.get("session_id") if isinstance(result, dict) else session_id
         final_response = result.get("final_response", "") if isinstance(result, dict) else ""
@@ -1554,6 +1641,9 @@ class APIServerAdapter(BasePlatformAdapter):
         body, err = await self._read_json_body(request)
         if err:
             return err
+        requested_provider, requested_model, route_override_err = self._extract_route_request_overrides(request, body)
+        if route_override_err is not None:
+            return route_override_err
         user_message, err = _session_chat_user_message(body)
         if err is not None:
             return err
@@ -1614,6 +1704,8 @@ class APIServerAdapter(BasePlatformAdapter):
                     stream_delta_callback=_delta,
                     tool_progress_callback=_tool_progress,
                     gateway_session_key=gateway_session_key,
+                    requested_provider=requested_provider,
+                    requested_model=requested_model,
                 )
                 final_response = result.get("final_response", "") if isinstance(result, dict) else ""
                 effective_session_id = result.get("session_id", session_id) if isinstance(result, dict) else session_id
@@ -1700,6 +1792,9 @@ class APIServerAdapter(BasePlatformAdapter):
             )
 
         stream = _coerce_request_bool(body.get("stream"), default=False)
+        requested_provider, requested_model, route_override_err = self._extract_route_request_overrides(request, body)
+        if route_override_err is not None:
+            return route_override_err
 
         # Extract system message (becomes ephemeral system prompt layered ON TOP of core)
         system_prompt = None
@@ -1880,6 +1975,8 @@ class APIServerAdapter(BasePlatformAdapter):
                 tool_complete_callback=_on_tool_complete,
                 agent_ref=agent_ref,
                 gateway_session_key=gateway_session_key,
+                requested_provider=requested_provider,
+                requested_model=requested_model,
             ))
             # Ensure SSE drain loops can terminate without relying on polling
             # agent_task.done(), which can race with queue timeout checks.
@@ -1899,6 +1996,8 @@ class APIServerAdapter(BasePlatformAdapter):
                 ephemeral_system_prompt=system_prompt,
                 session_id=session_id,
                 gateway_session_key=gateway_session_key,
+                requested_provider=requested_provider,
+                requested_model=requested_model,
             )
 
         idempotency_key = request.headers.get("Idempotency-Key")
@@ -2769,6 +2868,10 @@ class APIServerAdapter(BasePlatformAdapter):
                 status=400,
             )
 
+        requested_provider, requested_model, route_override_err = self._extract_route_request_overrides(request, body)
+        if route_override_err is not None:
+            return route_override_err
+
         raw_input = body.get("input")
         if raw_input is None:
             return web.json_response(_openai_error("Missing 'input' field"), status=400)
@@ -2912,6 +3015,8 @@ class APIServerAdapter(BasePlatformAdapter):
                 tool_complete_callback=_on_tool_complete,
                 agent_ref=agent_ref,
                 gateway_session_key=gateway_session_key,
+                requested_provider=requested_provider,
+                requested_model=requested_model,
             ))
             # Ensure SSE drain loops can terminate without relying on polling
             # agent_task.done(), which can race with queue timeout checks.
@@ -2945,6 +3050,8 @@ class APIServerAdapter(BasePlatformAdapter):
                 ephemeral_system_prompt=instructions,
                 session_id=session_id,
                 gateway_session_key=gateway_session_key,
+                requested_provider=requested_provider,
+                requested_model=requested_model,
             )
 
         idempotency_key = request.headers.get("Idempotency-Key")
@@ -3447,6 +3554,8 @@ class APIServerAdapter(BasePlatformAdapter):
         tool_complete_callback=None,
         agent_ref: Optional[list] = None,
         gateway_session_key: Optional[str] = None,
+        requested_provider: Optional[str] = None,
+        requested_model: Optional[str] = None,
     ) -> tuple:
         """
         Create an agent and run a conversation in a thread executor.
@@ -3470,6 +3579,9 @@ class APIServerAdapter(BasePlatformAdapter):
                 tool_start_callback=tool_start_callback,
                 tool_complete_callback=tool_complete_callback,
                 gateway_session_key=gateway_session_key,
+                user_message=user_message,
+                requested_provider=requested_provider,
+                requested_model=requested_model,
             )
             if agent_ref is not None:
                 agent_ref[0] = agent
@@ -3586,6 +3698,10 @@ class APIServerAdapter(BasePlatformAdapter):
         except Exception:
             return web.json_response(_openai_error("Invalid JSON"), status=400)
 
+        requested_provider, requested_model, route_override_err = self._extract_route_request_overrides(request, body)
+        if route_override_err is not None:
+            return route_override_err
+
         raw_input = body.get("input")
         if not raw_input:
             return web.json_response(_openai_error("Missing 'input' field"), status=400)
@@ -3685,6 +3801,9 @@ class APIServerAdapter(BasePlatformAdapter):
                     stream_delta_callback=_text_cb,
                     tool_progress_callback=event_cb,
                     gateway_session_key=gateway_session_key,
+                    user_message=user_message,
+                    requested_provider=requested_provider,
+                    requested_model=requested_model,
                 )
                 self._active_run_agents[run_id] = agent
 

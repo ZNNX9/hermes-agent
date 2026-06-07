@@ -32,6 +32,7 @@ import logging
 import os
 import re
 import shlex
+import subprocess
 import sys
 import signal
 import tempfile
@@ -1607,6 +1608,146 @@ def _resolve_gateway_model(config: dict | None = None) -> str:
     return ""
 
 
+def _gateway_dynamic_routing_enabled() -> bool:
+    value = os.getenv("HERMES_GATEWAY_DYNAMIC_ROUTING", "true").strip().lower()
+    return value not in {"0", "false", "no", "off"}
+
+
+def _local_router_script_path() -> Path | None:
+    configured = os.getenv("HERMES_LOCAL_ROUTER_SCRIPT", "").strip()
+    candidates = []
+    if configured:
+        candidates.append(Path(configured).expanduser())
+    candidates.extend(
+        [
+            Path.home() / ".hermes" / "scripts" / "local_router.py",
+            _hermes_home / "scripts" / "local_router.py",
+            _hermes_home.parent / "scripts" / "local_router.py",
+        ]
+    )
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _run_gateway_local_router(user_message: str) -> dict | None:
+    if not _gateway_dynamic_routing_enabled():
+        return None
+    text = str(user_message or "").strip()
+    if not text:
+        return None
+    script = _local_router_script_path()
+    if script is None:
+        logger.debug("Gateway dynamic routing skipped: local_router.py not found")
+        return None
+    timeout = float(os.getenv("HERMES_GATEWAY_LOCAL_ROUTER_TIMEOUT", "2.0") or "2.0")
+    try:
+        completed = subprocess.run(
+            [sys.executable, str(script), text],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=max(0.1, timeout),
+        )
+    except Exception as exc:
+        logger.debug("Gateway dynamic routing skipped: local router failed: %s", exc)
+        return None
+    if completed.returncode != 0:
+        logger.debug(
+            "Gateway dynamic routing skipped: local router exited %s: %s",
+            completed.returncode,
+            (completed.stderr or completed.stdout or "")[:200],
+        )
+        return None
+    try:
+        routed = json.loads(completed.stdout or "{}")
+    except ValueError:
+        logger.debug("Gateway dynamic routing skipped: local router returned non-JSON")
+        return None
+    return routed if isinstance(routed, dict) else None
+
+
+def _split_provider_model(value: object) -> tuple[str | None, str | None]:
+    raw = str(value or "").strip()
+    if not raw:
+        return None, None
+    if "/" not in raw:
+        return None, raw
+    provider, model = raw.split("/", 1)
+    provider = provider.strip() or None
+    model = model.strip() or None
+    return provider, model
+
+
+def _resolve_dynamic_turn_route(
+    user_message: str,
+    model: str,
+    runtime_kwargs: dict,
+) -> dict | None:
+    routed = _run_gateway_local_router(user_message)
+    if not routed:
+        return None
+
+    route_spec = routed.get("route_spec") if isinstance(routed.get("route_spec"), dict) else {}
+    task_type = str(routed.get("task_type") or "").strip()
+    provider_name: str | None = None
+    routed_model: str | None = None
+    fallback_model_marker = object()
+    fallback_model: object = fallback_model_marker
+
+    if str(route_spec.get("provider") or "").strip().lower() == "local":
+        routed_model = str(route_spec.get("model_id") or "").strip() or None
+        local_tier = str(route_spec.get("local_tier") or "").strip().lower()
+        provider_name = "gemma-local" if local_tier == "private" else "gemma-fast-local"
+        if task_type == "local_private":
+            fallback_model = None
+    else:
+        provider_name, routed_model = _split_provider_model(route_spec.get("model") or routed.get("model"))
+
+    if not routed_model:
+        return None
+
+    runtime = dict(runtime_kwargs)
+    if provider_name and provider_name != runtime.get("provider"):
+        try:
+            from hermes_cli.runtime_provider import resolve_runtime_provider
+
+            resolved = resolve_runtime_provider(requested=provider_name)
+            runtime.update(
+                {
+                    "api_key": resolved.get("api_key"),
+                    "base_url": resolved.get("base_url"),
+                    "provider": resolved.get("provider"),
+                    "api_mode": resolved.get("api_mode"),
+                    "command": resolved.get("command"),
+                    "args": list(resolved.get("args") or []),
+                    "credential_pool": resolved.get("credential_pool"),
+                }
+            )
+        except Exception as exc:
+            logger.debug(
+                "Gateway dynamic routing kept primary runtime: provider=%s failed: %s",
+                provider_name,
+                exc,
+            )
+            return None
+
+    dynamic: dict[str, object] = {
+        "model": routed_model,
+        "runtime_kwargs": runtime,
+        "task_type": task_type,
+        "policy_version": routed.get("route_policy_version"),
+        "route_policy_version": routed.get("route_policy_version"),
+    }
+    effort = route_spec.get("reasoning_effort")
+    if isinstance(effort, str) and effort.strip():
+        dynamic["reasoning_config"] = {"enabled": True, "effort": effort.strip()}
+    if fallback_model is not fallback_model_marker:
+        dynamic["fallback_model"] = fallback_model
+    return dynamic
+
+
 def _resolve_hermes_bin() -> Optional[list[str]]:
     """Resolve the Hermes update command as argv parts.
 
@@ -2634,6 +2775,7 @@ class GatewayRunner:
                 "base_url": override.get("base_url"),
                 "api_mode": override.get("api_mode"),
                 "max_tokens": override.get("max_tokens"),
+                "_session_model_override_active": True,
             }
             if override_runtime.get("api_key"):
                 logger.debug(
@@ -2668,6 +2810,7 @@ class GatewayRunner:
             model, runtime_kwargs = self._apply_session_model_override(
                 resolved_session_key, model, runtime_kwargs
             )
+            runtime_kwargs["_session_model_override_active"] = True
 
         # When the config has no model.default but a provider was resolved
         # (e.g. user ran `hermes auth add openai-codex` without `hermes model`),
@@ -2723,6 +2866,20 @@ class GatewayRunner:
         """
         from hermes_cli.models import resolve_fast_mode_overrides
 
+        dynamic_route = None
+        if not runtime_kwargs.get("_session_model_override_active"):
+            dynamic_route = _resolve_dynamic_turn_route(user_message, model, runtime_kwargs)
+            if dynamic_route:
+                logger.info(
+                    "Gateway dynamic route: task=%s policy=%s model=%s -> %s",
+                    dynamic_route.get("task_type"),
+                    dynamic_route.get("policy_version"),
+                    model,
+                    dynamic_route.get("model"),
+                )
+                model = str(dynamic_route["model"])
+                runtime_kwargs = dict(dynamic_route["runtime_kwargs"])
+
         runtime = {
             "api_key": runtime_kwargs.get("api_key"),
             "base_url": runtime_kwargs.get("base_url"),
@@ -2745,6 +2902,16 @@ class GatewayRunner:
                 tuple(runtime["args"]),
             ),
         }
+        if dynamic_route:
+            route["dynamic_route"] = {
+                "task_type": dynamic_route.get("task_type"),
+                "policy_version": dynamic_route.get("policy_version"),
+                "route_policy_version": dynamic_route.get("route_policy_version"),
+            }
+            if "reasoning_config" in dynamic_route:
+                route["reasoning_config"] = dynamic_route["reasoning_config"]
+            if "fallback_model" in dynamic_route:
+                route["fallback_model"] = dynamic_route["fallback_model"]
 
         service_tier = getattr(self, "_service_tier", None)
         if not service_tier:
@@ -12706,6 +12873,14 @@ class GatewayRunner:
             self._reasoning_config = reasoning_config
             self._service_tier = self._load_service_tier()
             turn_route = self._resolve_turn_agent_config(prompt, model, runtime_kwargs)
+            if "reasoning_config" in turn_route:
+                reasoning_config = turn_route["reasoning_config"]
+                self._reasoning_config = reasoning_config
+            fallback_model = (
+                turn_route["fallback_model"]
+                if "fallback_model" in turn_route
+                else self._fallback_model
+            )
 
             # Enrich the prompt with image descriptions so the background
             # agent can see user-attached images (same as the main flow).
@@ -12752,8 +12927,9 @@ class GatewayRunner:
                     chat_type=source.chat_type,
                     thread_id=source.thread_id,
                     session_db=self._session_db,
-                    fallback_model=self._fallback_model,
+                    fallback_model=fallback_model,
                 )
+                self._apply_turn_fallback_model(agent, fallback_model)
                 try:
                     return agent.run_conversation(
                         user_message=enriched_prompt,
@@ -16396,6 +16572,22 @@ class GatewayRunner:
                 runtime_kwargs[key] = val
         return model, runtime_kwargs
 
+    @staticmethod
+    def _apply_turn_fallback_model(agent: object, fallback_model: object) -> None:
+        if isinstance(fallback_model, list):
+            fallback_chain = [
+                item
+                for item in fallback_model
+                if isinstance(item, dict) and item.get("provider") and item.get("model")
+            ]
+        elif isinstance(fallback_model, dict) and fallback_model.get("provider") and fallback_model.get("model"):
+            fallback_chain = [fallback_model]
+        else:
+            fallback_chain = []
+        setattr(agent, "_fallback_chain", fallback_chain)
+        setattr(agent, "_fallback_index", 0)
+        setattr(agent, "_fallback_model", fallback_chain[0] if fallback_chain else None)
+
     def _is_intentional_model_switch(self, session_key: str, agent_model: str) -> bool:
         """Return True if *agent_model* matches an active /model session override."""
         override = self._session_model_overrides.get(session_key)
@@ -17942,6 +18134,14 @@ class GatewayRunner:
                 )
 
             turn_route = self._resolve_turn_agent_config(message, model, runtime_kwargs)
+            if "reasoning_config" in turn_route:
+                reasoning_config = turn_route["reasoning_config"]
+                self._reasoning_config = reasoning_config
+            fallback_model = (
+                turn_route["fallback_model"]
+                if "fallback_model" in turn_route
+                else self._fallback_model
+            )
 
             # Check agent cache — reuse the AIAgent from the previous message
             # in this session to preserve the frozen system prompt and tool
@@ -18005,7 +18205,7 @@ class GatewayRunner:
                     thread_id=source.thread_id,
                     gateway_session_key=session_key,
                     session_db=self._session_db,
-                    fallback_model=self._fallback_model,
+                    fallback_model=fallback_model,
                 )
                 if _cache_lock and _cache is not None:
                     with _cache_lock:
@@ -18060,6 +18260,7 @@ class GatewayRunner:
             agent.reasoning_config = reasoning_config
             agent.service_tier = self._service_tier
             agent.request_overrides = turn_route.get("request_overrides") or {}
+            self._apply_turn_fallback_model(agent, fallback_model)
 
             _bg_review_release = threading.Event()
             _bg_review_pending: list[str] = []
