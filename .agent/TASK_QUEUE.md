@@ -130,12 +130,57 @@ Observation:
 
 ### P1 Deterministic Model Router
 
-Status: queued
-Owner: Codex after P0.1 acceptance
+Status: prepared, awaiting explicit Richard start
+Owner: Codex after Richard approval
 Scope: deterministic policy engine, sensitivity/risk classifier, route explain,
 provider-adapter boundary, and cache rules
 Risk: R3
+Sensitivity: S3/S4 possible; treat as S4 until the approved file set and data
+surfaces are narrowed
+
+Objective:
+
+Add deterministic routing so Hermes can recommend and enforce which model or
+agent lane may receive a task, based on sensitivity, risk, context size,
+provider capability, and approval requirements.
 
 Hard rule:
 
 LLMs may recommend routes. Policy code must enforce routes.
+
+Not started:
+
+- No runtime router code is approved by this workflow update.
+- No tests, dependencies, CI, provider config, API keys, LaunchAgent/service
+  config, or model routes are approved by this workflow update.
+
+Required context before implementation:
+
+- `.agent/PROJECT_STATE.md`
+- `.agent/DECISIONS.md`
+- `.agent/INTELLIGENCE_ROUTING.md`
+- `.agent/HERMES_OS_POLICY.md`
+- `.agent/AGENT_ROLES.md`
+- `.agent/EVIDENCE_RECEIPT_SCHEMA.md`
+- `.agent/REVIEW_CHECKLIST.md`
+- `.agent/RESUME_PACKETS/2026-06-12-p1-deterministic-model-router.md`
+- P0.1 commit `c7979d945`
+
+Candidate acceptance gates:
+
+- Router decisions are explainable without exposing secret values.
+- S3/S4 tasks cannot route to DeepSeek or other low-trust cloud lanes.
+- Local/Qwen/Ollama can provide short classification hints but cannot override
+  policy.
+- GPT/Codex remains the primary high-risk engineering lane.
+- Hermes advisory output is never accepted as local execution evidence.
+- Tests use `scripts/run_tests.sh` if implementation touches Python tests.
+
+Stop conditions:
+
+- P1 needs secrets, `.env`, auth files, provider keys, browser profiles, or
+  keychains.
+- P1 changes network exposure, service binding, deployment, LaunchAgent, or
+  production runtime config.
+- P1 requires provider behavior changes outside the approved file set.
+- P1 conflicts with unrelated uncommitted files.

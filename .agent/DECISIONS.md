@@ -59,12 +59,20 @@ local execution.
 P0.1 may touch runtime behavior, tests, CLI surface, diagnostics, or app config.
 It must start from its own task card, approved file set, and verification plan.
 
+### D-010: P0.1 Health Baseline Is The Router Gate
+
+P1 should not assume Hermes is healthy from process state alone. It should use
+the P0.1 evidence model: gateway runtime, authenticated API reachability,
+listener exposure, launchd-definition freshness, secret-safety, and receipt
+validation are separate signals.
+
 ## Open Decisions
 
-- Exact P0.1 file set and CLI surface.
-- Whether P0.1 should live entirely inside existing CLI command modules or add
-  a small diagnostics module.
-- Whether evidence validation begins as manual CLI only or also gets a git hook.
+- Exact P1 route policy schema and file set.
+- Whether P1 starts with policy-only dry-run/explain mode before enforcing
+  provider selection.
+- Whether P1 router evidence validation remains manual CLI first or later gains
+  automation hooks.
 
 ## Rejected For Now
 
@@ -72,3 +80,5 @@ It must start from its own task card, approved file set, and verification plan.
 - Letting DeepSeek or Gemini receive private, confidential, secret, or regulated
   payloads without policy enforcement and redaction.
 - Building dashboard UI before the CLI/task/receipt loop works.
+- Starting P1 as a free-form multi-model discussion without a deterministic
+  policy artifact and receipt gate.

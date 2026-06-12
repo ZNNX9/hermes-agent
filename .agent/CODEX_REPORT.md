@@ -10,7 +10,7 @@ agent: Codex
 model_or_surface: local Codex CLI
 repo_path: /Users/richardzhang/.hermes/hermes-agent
 branch: codex/hermes-os-p0-workflow-backbone
-commit: pending before local commit
+commit: c7979d945
 
 scope:
   requested: >
@@ -108,4 +108,102 @@ remaining_risks:
   - Full repository test suite was not run; verification was scoped to doctor
     and gateway runtime tests.
 next_recommended_task: P1 Deterministic Model Router after explicit approval
+```
+
+## P1 Preparation Metadata Receipt
+
+```yaml
+task_id: P1 Preparation Metadata
+status: completed
+agent: Codex
+model_or_surface: local Codex CLI
+repo_path: /Users/richardzhang/.hermes/hermes-agent
+branch: codex/hermes-os-p0-workflow-backbone
+commit: pending before local commit
+
+scope:
+  requested: >
+    Perform workflow-only updates after P0.1 using richard-ai-workflow.
+  completed: >
+    Recorded the real P0.1 commit, refreshed P1 task state, created a P1
+    resume packet, prepared a browser LLM advisory request, and updated
+    decisions for the P0.1 health baseline as the P1 router gate.
+  out_of_scope_not_done: >
+    Did not start P1 runtime implementation, edit tests, change dependencies,
+    change CI, touch secrets/config, change provider routing, or push.
+
+files:
+  read:
+    - .agent/PROJECT_STATE.md
+    - .agent/TASK_QUEUE.md
+    - .agent/BRANCH_LOG.md
+    - .agent/CODEX_REPORT.md
+    - .agent/DECISIONS.md
+    - .agent/INTELLIGENCE_ROUTING.md
+    - .agent/HERMES_OS_POLICY.md
+    - .agent/AGENT_ROLES.md
+    - .agent/REVIEW_CHECKLIST.md
+  changed:
+    - .agent/PROJECT_STATE.md
+    - .agent/TASK_QUEUE.md
+    - .agent/DECISIONS.md
+    - .agent/BRANCH_LOG.md
+    - .agent/CODEX_REPORT.md
+  created:
+    - .agent/RESUME_PACKETS/2026-06-12-p1-deterministic-model-router.md
+    - .agent/browser-loop/REQUESTS.md
+  deleted: []
+  not_touched_unrelated:
+    - patrol_note.py
+    - patrol_scan.py
+    - research_output.md
+    - scan_patrol.py
+    - scan_projects.py
+    - scan_unread.py
+    - sessions.db
+    - tests/gateway/test_agent_cache_management.py
+    - tests/gateway/test_telegram_local_gemma_route.py
+    - tmp_scan.py
+    - update_notes.py
+
+commands:
+  - command: git diff --check
+    purpose: Verify docs-only diff has no whitespace errors
+    result: passed
+    evidence: no output, exit 0
+  - command: test -f .agent/RESUME_PACKETS/2026-06-12-p1-deterministic-model-router.md
+    purpose: Verify P1 resume packet exists
+    result: passed
+    evidence: no output, exit 0
+  - command: rg -n "prepared-not-sent|P1 is not started|c7979d945|No runtime router code is approved" .agent
+    purpose: Verify key P1 guardrails and commit references are present
+    result: passed
+    evidence: matched PROJECT_STATE, TASK_QUEUE, CODEX_REPORT, RESUME_PACKETS, and browser-loop request files
+
+security:
+  secrets_read: false
+  secrets_printed: false
+  env_files_touched: false
+  network_exposure_changed: false
+  deployment_changed: false
+  destructive_git_used: false
+
+policy:
+  sensitivity_level: S1
+  risk_level: R1
+  richard_approval_required: false
+  approval_reference: latest Richard instruction plus richard-ai-workflow scope
+
+validation:
+  tests: skipped; workflow-only metadata update
+  lint: skipped; no code changed
+  build: skipped; no build target affected
+  smoke: skipped; no runtime path changed
+  receipt_check: passed
+
+remaining_risks:
+  - P1 runtime implementation still needs explicit Richard approval.
+  - Browser LLM request is prepared but not sent; no browser feedback exists for P1 yet.
+  - Branch remains unpushed while the queued Hermes workflow batch continues.
+next_recommended_task: Send the prepared advisory prompt or explicitly start P1
 ```

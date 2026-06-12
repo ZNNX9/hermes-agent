@@ -1,9 +1,9 @@
 # Hermes OS Project State
 
-Status: P0.1 completed
+Status: P1 prepared, not started
 Last updated: 2026-06-12
 Owner: Richard
-Active topic: Hermes runtime health baseline
+Active topic: deterministic model router planning
 
 ## Purpose
 
@@ -14,23 +14,28 @@ changed.
 
 ## Current Slice
 
-Ticket: P0.1 Runtime Health Baseline
-Status: completed
-Scope: `hermes doctor --json` runtime health diagnostics
-Runtime changes: `doctor` CLI now has a read-only JSON health-report fast path
+Ticket: P1 Preparation Metadata
+Status: prepared
+Scope: workflow-only task card, resume packet, and browser-loop request
+Runtime changes: none in this slice
 Tests/dependencies/CI changes: none
-Secrets/app config changes: no files changed; API server key value was read
-from existing config only to perform authenticated smoke checks
+Secrets/app config changes: none in this slice
 
 Evidence:
 
+- P0.1 was committed as `c7979d945 Add Hermes runtime health JSON doctor`.
 - `scripts/run_tests.sh tests/hermes_cli/test_doctor_json.py tests/hermes_cli/test_doctor.py tests/hermes_cli/test_doctor_command_install.py tests/hermes_cli/test_gateway_runtime_health.py`
-  passed 78 tests.
+  passed 78 tests during P0.1.
 - `.venv/bin/python ./hermes doctor --json` returned JSON with
   `api_models=ok`, `chat_smoke=ok`, `gateway_runtime=ok`,
-  `listener_exposure=ok`, `secret_scan=ok`, and `receipt_validator=ok`.
+  `listener_exposure=ok`, `secret_scan=ok`, and `receipt_validator=ok` during
+  P0.1.
 - The same smoke returned `launchd_definition=warn` because the installed local
   launchd plist is not current.
+- P1 has a workflow-only resume packet at
+  `.agent/RESUME_PACKETS/2026-06-12-p1-deterministic-model-router.md`.
+- P1 has a prepared, not-sent browser review request at
+  `.agent/browser-loop/REQUESTS.md`.
 
 ## Current Chat Re-Sync
 
@@ -87,5 +92,5 @@ Richard approves high-risk actions.
 
 ## Next Bounded Step
 
-P1 Deterministic Model Router should stay policy-driven: LLMs may advise route
-choices, but deterministic policy code must enforce the final route.
+Richard can explicitly start P1 when ready. Until then, no deterministic router
+runtime code, tests, config, or provider behavior should be changed.

@@ -17,12 +17,14 @@ Commits:
 
 - `703a4ba24 Add Hermes OS workflow backbone`
 - `d7348209b Record Hermes OS current chat handoff`
+- `c7979d945 Add Hermes runtime health JSON doctor`
 
 Current workflow slices:
 
 - P0.0 Hermes/Codex Workflow Backbone: completed.
 - P0.0a Current Chat Review And Handoff: completed.
-- P0.1 Runtime Health Baseline: completed in the current local commit.
+- P0.1 Runtime Health Baseline: completed.
+- P1 prep metadata: completed as workflow-only updates.
 
 Push status:
 
