@@ -148,6 +148,43 @@ Hard rule:
 
 LLMs may recommend routes. Policy code must enforce routes.
 
+Recommended first implementation slice:
+
+#### P1.0 Router Safety Core, Offline Only
+
+Status: prepared, not started
+Scope:
+
+- Deterministic secret scanner before any LLM classifier.
+- Local classifier interface/wrapper, with mocked tests.
+- S0-S4 sensitivity labels and R0-R4 risk labels.
+- Policy engine that returns allow/deny/require_redaction/
+  require_human_approval/require_local_only decisions.
+- Pre-call local budget ledger and static price table.
+- Route explanation JSON output or fixture helper.
+- Tests proving no full secret value appears in output.
+
+Non-goals:
+
+- No Gemini, DeepSeek, OpenAI, Codex, Ollama, or Telegram provider adapter
+  implementation.
+- No external provider calls.
+- No API keys, `.env`, auth files, provider config, service binding, deploy, or
+  network exposure changes.
+- No runtime route enforcement beyond offline policy evaluation.
+
+Recommended follow-up slice:
+
+#### P1.1 Provider Adapter Layer
+
+Status: deferred
+Scope:
+
+- Provider adapters only after P1.0 passes.
+- Model availability probe before using any new Gemini model ID.
+- Every provider call must require scanner result, sensitivity/risk labels,
+  policy decision, budget reservation, and route explanation IDs.
+
 Not started:
 
 - No runtime router code is approved by this workflow update.
@@ -170,10 +207,14 @@ Required context before implementation:
 - `.agent/browser-loop/UI_ISSUES.md`
 - P0.1 commit `c7979d945`
 - P1 prep commit `37b36b6e2`
+- P1 lock commit `509771ae8`
+- Captured ChatGPT P1 router review in `.agent/browser-loop/RESPONSES.md`
 
 Candidate acceptance gates:
 
 - Router decisions are explainable without exposing secret values.
+- Deterministic scanner runs before any local LLM classifier.
+- Pre-call budget ledger denies routes over hard caps before provider calls.
 - S3/S4 tasks cannot route to DeepSeek or other low-trust cloud lanes.
 - Local/Qwen/Ollama can provide short classification hints but cannot override
   policy.
@@ -190,3 +231,5 @@ Stop conditions:
 - P1 requires provider behavior changes outside the approved file set.
 - P1 conflicts with unrelated uncommitted files.
 - `.agent/LOCKS.json` marks the P1 runtime lock active.
+- P1.0 tries to verify or adopt new Gemini model IDs/prices without official
+  docs or live model availability checks.

@@ -66,13 +66,28 @@ the P0.1 evidence model: gateway runtime, authenticated API reachability,
 listener exposure, launchd-definition freshness, secret-safety, and receipt
 validation are separate signals.
 
+### D-011: P1 Starts With Offline Router Safety Core
+
+P1 should start as `P1.0 Router Safety Core, offline only`: deterministic
+secret scan, local classifier wrapper, S0-S4/R0-R4 policy engine, local
+pre-call budget ledger, route explanation, and tests. Provider adapters and
+external calls are deferred to P1.1.
+
+### D-012: Provider Model Facts Require Verification
+
+Browser LLM claims about Gemini model IDs, GA status, pricing, batch pricing,
+and context caching are advisory until verified against official provider docs
+or live model availability checks. Do not switch route defaults to
+`gemini-3.1-pro` or any new model ID until `models.list` or official docs
+confirm it for the active API/project.
+
 ## Open Decisions
 
-- Exact P1 route policy schema and file set.
-- Whether P1 starts with policy-only dry-run/explain mode before enforcing
-  provider selection.
+- Exact P1.0 file set and module/package name.
+- Whether route explanation starts as a CLI command or test fixture helper.
 - Whether P1 router evidence validation remains manual CLI first or later gains
   automation hooks.
+- Official provider model/pricing verification source before P1.1.
 
 ## Rejected For Now
 
@@ -82,3 +97,5 @@ validation are separate signals.
 - Building dashboard UI before the CLI/task/receipt loop works.
 - Starting P1 as a free-form multi-model discussion without a deterministic
   policy artifact and receipt gate.
+- Adding Gemini/DeepSeek/OpenAI provider adapters in P1.0 before scanner,
+  policy, budget ledger, and route explanation tests pass offline.

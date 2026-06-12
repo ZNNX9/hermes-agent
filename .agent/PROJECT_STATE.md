@@ -1,9 +1,9 @@
 # Hermes OS Project State
 
-Status: P1 prepared and locked, not started
+Status: P1.0 prepared and locked, not started
 Last updated: 2026-06-12
 Owner: Richard
-Active topic: deterministic model router planning
+Active topic: P1.0 offline router safety core planning
 
 ## Purpose
 
@@ -14,9 +14,9 @@ changed.
 
 ## Current Slice
 
-Ticket: P1 Post-Commit Re-Sync
+Ticket: P1 ChatGPT Router Review Capture
 Status: completed
-Scope: workflow-only post-commit sync, browser-loop ledgers, and lock metadata
+Scope: workflow-only browser response capture and P1.0/P1.1 planning split
 Runtime changes: none in this slice
 Tests/dependencies/CI changes: none
 Secrets/app config changes: none in this slice
@@ -42,6 +42,13 @@ Evidence:
   browser response has been captured in this slice.
 - `.agent/LOCKS.json` records that P1 runtime implementation remains blocked
   until Richard explicitly starts it.
+- Codex captured a read-only ChatGPT response from Richard's supplied URL and
+  recorded it in `.agent/browser-loop/RESPONSES.md`.
+- Captured browser advice split P1 into offline `P1.0 Router Safety Core` and
+  deferred `P1.1 Provider Adapter Layer`.
+- Browser claims about Gemini model IDs/prices remain unverified and must not
+  drive implementation until checked against official docs or live model
+  availability.
 
 ## Current Chat Re-Sync
 

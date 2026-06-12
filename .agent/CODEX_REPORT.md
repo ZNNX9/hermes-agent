@@ -217,7 +217,7 @@ agent: Codex
 model_or_surface: local Codex CLI
 repo_path: /Users/richardzhang/.hermes/hermes-agent
 branch: codex/hermes-os-p0-workflow-backbone
-commit: pending before local commit
+commit: 509771ae8
 
 scope:
   requested: >
@@ -299,4 +299,117 @@ remaining_risks:
   - Browser request remains prepared-not-sent.
   - Branch remains unpushed while the queued Hermes workflow batch continues.
 next_recommended_task: Decide whether to send advisory prompt or start P1
+```
+
+## P1 ChatGPT Router Review Capture Receipt
+
+```yaml
+task_id: P1 ChatGPT Router Review Capture
+status: completed
+agent: Codex
+model_or_surface: local Codex CLI plus Chrome read-only browser capture
+repo_path: /Users/richardzhang/.hermes/hermes-agent
+branch: codex/hermes-os-p0-workflow-backbone
+commit: pending before local commit
+
+scope:
+  requested: >
+    Continue richard-ai-workflow using Richard's supplied ChatGPT conversation
+    URL.
+  completed: >
+    Claimed and read the matching ChatGPT tab, captured the latest P1 router
+    review, reconciled it into local `.agent` workflow state, split P1 into
+    offline P1.0 router safety core and deferred P1.1 provider adapters, and
+    marked model/pricing claims as needing official verification.
+  out_of_scope_not_done: >
+    Did not send a new browser prompt, start P1 runtime implementation, edit
+    tests, change dependencies, change CI, touch secrets/config, verify Gemini
+    pricing/model IDs, or push.
+
+files:
+  read:
+    - .agent/PROJECT_STATE.md
+    - .agent/TASK_QUEUE.md
+    - .agent/DECISIONS.md
+    - .agent/RESUME_PACKETS/2026-06-12-p1-deterministic-model-router.md
+    - .agent/LOCKS.json
+    - .agent/browser-loop/REQUESTS.md
+    - .agent/browser-loop/RESPONSES.md
+    - .agent/browser-loop/FEEDBACK_PACKETS.md
+    - .agent/browser-loop/UI_ISSUES.md
+  changed:
+    - .agent/PROJECT_STATE.md
+    - .agent/TASK_QUEUE.md
+    - .agent/DECISIONS.md
+    - .agent/RESUME_PACKETS/2026-06-12-p1-deterministic-model-router.md
+    - .agent/BRANCH_LOG.md
+    - .agent/CODEX_REPORT.md
+    - .agent/browser-loop/REQUESTS.md
+    - .agent/browser-loop/RESPONSES.md
+    - .agent/browser-loop/FEEDBACK_PACKETS.md
+    - .agent/browser-loop/UI_ISSUES.md
+  created: []
+  deleted: []
+  not_touched_unrelated:
+    - patrol_note.py
+    - patrol_scan.py
+    - research_output.md
+    - scan_patrol.py
+    - scan_projects.py
+    - scan_unread.py
+    - sessions.db
+    - tests/gateway/test_agent_cache_management.py
+    - tests/gateway/test_telegram_local_gemma_route.py
+    - tmp_scan.py
+    - update_notes.py
+
+commands:
+  - command: git diff --check
+    purpose: Verify docs-only diff has no whitespace errors
+    result: passed
+    evidence: no output, exit 0
+  - command: python3 -m json.tool .agent/LOCKS.json
+    purpose: Verify lock metadata remains valid JSON
+    result: passed
+    evidence: exit 0
+  - command: rg -n 'response-captured|P1.0 Router Safety Core|P1.1 Provider Adapter|official docs|models.list|prompt_sent_by_codex: false|gemini-3.1-pro' .agent
+    purpose: Verify ChatGPT capture, P1.0/P1.1 split, and model verification guardrails are recorded
+    result: passed
+    evidence: matched DECISIONS, PROJECT_STATE, TASK_QUEUE, RESUME_PACKETS, RESPONSES, FEEDBACK_PACKETS, REQUESTS, and CODEX_REPORT
+
+browser:
+  platform: ChatGPT
+  url: https://chatgpt.com/g/g-p-6a25c0156164819199b96293b59e675a-codex-and-system/c/6a2c5eea-87dc-83ea-b2f3-2fbd5a80e316
+  prompt_sent_by_codex: false
+  response_captured: true
+  browser_side_effects: false
+
+security:
+  secrets_read: false
+  secrets_printed: false
+  env_files_touched: false
+  network_exposure_changed: false
+  deployment_changed: false
+  destructive_git_used: false
+  cloud_payload_sent_by_codex: false
+
+policy:
+  sensitivity_level: S1
+  risk_level: R1
+  richard_approval_required: false
+  approval_reference: latest Richard instruction plus richard-ai-workflow scope
+
+validation:
+  tests: skipped; workflow-only metadata update
+  lint: passed for JSON metadata via python3 -m json.tool
+  build: skipped; no build target affected
+  smoke: skipped; no runtime path changed
+  receipt_check: passed
+
+remaining_risks:
+  - P1.0 runtime implementation still needs explicit Richard approval.
+  - Gemini model IDs, pricing, batch pricing, and context caching claims remain
+    unverified.
+  - Branch remains unpushed while the queued Hermes workflow batch continues.
+next_recommended_task: Explicitly start P1.0 or request another advisory review
 ```
