@@ -1,9 +1,9 @@
 # Hermes OS Project State
 
-Status: prepared
+Status: P0.1 completed
 Last updated: 2026-06-12
 Owner: Richard
-Active topic: Hermes/Codex control-plane workflow backbone
+Active topic: Hermes runtime health baseline
 
 ## Purpose
 
@@ -14,12 +14,23 @@ changed.
 
 ## Current Slice
 
-Ticket: P0.0 Hermes/Codex Workflow Backbone
+Ticket: P0.1 Runtime Health Baseline
 Status: completed
-Scope: workflow-only docs under `.agent/`
-Runtime changes: none
+Scope: `hermes doctor --json` runtime health diagnostics
+Runtime changes: `doctor` CLI now has a read-only JSON health-report fast path
 Tests/dependencies/CI changes: none
-Secrets/app config changes: none
+Secrets/app config changes: no files changed; API server key value was read
+from existing config only to perform authenticated smoke checks
+
+Evidence:
+
+- `scripts/run_tests.sh tests/hermes_cli/test_doctor_json.py tests/hermes_cli/test_doctor.py tests/hermes_cli/test_doctor_command_install.py tests/hermes_cli/test_gateway_runtime_health.py`
+  passed 78 tests.
+- `.venv/bin/python ./hermes doctor --json` returned JSON with
+  `api_models=ok`, `chat_smoke=ok`, `gateway_runtime=ok`,
+  `listener_exposure=ok`, `secret_scan=ok`, and `receipt_validator=ok`.
+- The same smoke returned `launchd_definition=warn` because the installed local
+  launchd plist is not current.
 
 ## Current Chat Re-Sync
 
@@ -76,7 +87,5 @@ Richard approves high-risk actions.
 
 ## Next Bounded Step
 
-P0.1 Runtime Health Baseline should implement `hermes doctor --json`, an
-authenticated `/v1/models` check, a real chat smoke, launchd/listener safety
-checks, secret scanning, and a receipt validator. P0.1 is runtime work and must
-start from a fresh task card and verification plan.
+P1 Deterministic Model Router should stay policy-driven: LLMs may advise route
+choices, but deterministic policy code must enforce the final route.

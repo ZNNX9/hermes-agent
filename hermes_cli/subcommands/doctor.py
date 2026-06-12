@@ -32,4 +32,9 @@ def build_doctor_parser(subparsers, *, cmd_doctor: Callable) -> None:
             "doctor` first to see active advisories and their IDs."
         ),
     )
+    doctor_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print a machine-readable runtime health report and exit",
+    )
     doctor_parser.set_defaults(func=cmd_doctor)

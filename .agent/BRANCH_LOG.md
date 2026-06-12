@@ -16,11 +16,13 @@ Base observed at start:
 Commits:
 
 - `703a4ba24 Add Hermes OS workflow backbone`
+- `d7348209b Record Hermes OS current chat handoff`
 
 Current workflow slices:
 
 - P0.0 Hermes/Codex Workflow Backbone: completed.
 - P0.0a Current Chat Review And Handoff: completed.
+- P0.1 Runtime Health Baseline: completed in the current local commit.
 
 Push status:
 

@@ -485,6 +485,12 @@ def run_doctor(args):
             sys.exit(1)
         return
 
+    if getattr(args, "json", False):
+        from hermes_cli.doctor_json import emit_doctor_json
+
+        emit_doctor_json()
+        return
+
     issues = []
     manual_issues = []  # issues that can't be auto-fixed
     fixed_count = 0

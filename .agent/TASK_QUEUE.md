@@ -87,15 +87,14 @@ Acceptance:
 - Browser/GPT access honesty is explicit.
 - No runtime/test/dependency/CI/secrets files changed.
 
-## Next
-
 ### P0.1 Runtime Health Baseline
 
-Status: queued
-Owner: Codex after Richard approval or explicit task start
+Status: completed
+Owner: Codex
 Scope: Hermes runtime health and safety diagnostics
 Risk: R3
-Sensitivity: S2 by default, S4 if secrets/config payloads are inspected
+Sensitivity: S4, because API server config/secret values were inspected for
+authenticated smoke checks
 
 Goal:
 
@@ -111,11 +110,23 @@ Candidate deliverables:
 - Secret-scan helper.
 - Evidence receipt validator.
 
-Required before start:
+Acceptance:
 
-- Fresh git status.
-- Approved files and tests.
-- Confirmation that runtime/test/app-config scope is allowed.
+- `hermes doctor --json` emits a machine-readable runtime health report.
+- Authenticated `/v1/models` and chat smoke checks run when API server config
+  is available.
+- API key values are used only for Authorization headers and are not emitted in
+  the JSON report.
+- Listener exposure, launchd freshness, gateway runtime, secret-safety, and
+  receipt schema checks are represented.
+- Related `doctor` and gateway runtime tests pass.
+
+Observation:
+
+- Current local launchd plist reports `current: false`; this was recorded as a
+  `warn` and not repaired in P0.1.
+
+## Next
 
 ### P1 Deterministic Model Router
 

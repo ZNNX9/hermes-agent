@@ -45,11 +45,36 @@ Not approved:
 - Claiming a browser LLM response was captured unless a live browser action
   actually happened.
 
+### A-003: P0.1 Runtime Health Baseline
+
+Approved by: Richard
+Date: 2026-06-12
+Trigger:
+
+- Richard sent `P0.1` after the task queue identified P0.1 as the next
+  approval-gated slice.
+
+Scope:
+
+- Add `hermes doctor --json` as a read-only health-report path.
+- Add tests for parser support, config-missing skip behavior, authenticated API
+  smoke behavior, and secret-safe output.
+- Use existing API server config only to perform local authenticated
+  `/v1/models` and chat smoke checks.
+
+Not approved:
+
+- Editing `.env`, `config.yaml`, auth files, provider keys, browser profiles,
+  or keychains.
+- Changing service binding, Tailscale/LAN exposure, LaunchAgent definitions,
+  deployment, or production runtime config.
+- Adding multi-model routing behavior.
+
 ## Required Future Approvals
 
 Richard approval is required before:
 
-- P0.1 changes runtime or CLI behavior.
+- P1 changes deterministic routing, provider selection, or model policy.
 - Any task touches secrets, `.env`, auth, provider keys, broker/wallet data, or
   browser profiles.
 - Any service binding, Tailscale/LAN exposure, LaunchAgent, deploy, release, or
