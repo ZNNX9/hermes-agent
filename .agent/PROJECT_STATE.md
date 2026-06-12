@@ -1,6 +1,6 @@
 # Hermes OS Project State
 
-Status: P1 prepared, not started
+Status: P1 prepared and locked, not started
 Last updated: 2026-06-12
 Owner: Richard
 Active topic: deterministic model router planning
@@ -14,9 +14,9 @@ changed.
 
 ## Current Slice
 
-Ticket: P1 Preparation Metadata
-Status: prepared
-Scope: workflow-only task card, resume packet, and browser-loop request
+Ticket: P1 Post-Commit Re-Sync
+Status: completed
+Scope: workflow-only post-commit sync, browser-loop ledgers, and lock metadata
 Runtime changes: none in this slice
 Tests/dependencies/CI changes: none
 Secrets/app config changes: none in this slice
@@ -36,6 +36,12 @@ Evidence:
   `.agent/RESUME_PACKETS/2026-06-12-p1-deterministic-model-router.md`.
 - P1 has a prepared, not-sent browser review request at
   `.agent/browser-loop/REQUESTS.md`.
+- P1 preparation metadata was committed as
+  `37b36b6e2 Prepare P1 router workflow packet`.
+- P1 browser responses and UI issue ledgers exist and explicitly record that no
+  browser response has been captured in this slice.
+- `.agent/LOCKS.json` records that P1 runtime implementation remains blocked
+  until Richard explicitly starts it.
 
 ## Current Chat Re-Sync
 

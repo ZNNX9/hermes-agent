@@ -1,0 +1,26 @@
+{
+  "status": "prepared",
+  "last_updated": "2026-06-12",
+  "locks": [
+    {
+      "id": "L-001-p1-runtime-not-started",
+      "status": "active",
+      "scope": "P1 Deterministic Model Router",
+      "reason": "P1 is prepared as workflow metadata only; runtime implementation needs explicit Richard approval.",
+      "allowed": [
+        ".agent workflow metadata",
+        "prepared browser LLM request packets",
+        "local review notes that do not claim browser execution"
+      ],
+      "blocked": [
+        "runtime router code changes",
+        "tests for runtime router behavior",
+        "dependency or CI changes",
+        "provider config or secret handling",
+        "network exposure, LaunchAgent, service binding, deploy, or production config changes",
+        "browser-applied feedback claims without captured browser evidence"
+      ],
+      "release_condition": "Richard explicitly starts P1 runtime implementation and approved files are listed in TASK_QUEUE.md."
+    }
+  ]
+}

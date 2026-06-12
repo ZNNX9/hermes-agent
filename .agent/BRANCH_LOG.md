@@ -18,6 +18,7 @@ Commits:
 - `703a4ba24 Add Hermes OS workflow backbone`
 - `d7348209b Record Hermes OS current chat handoff`
 - `c7979d945 Add Hermes runtime health JSON doctor`
+- `37b36b6e2 Prepare P1 router workflow packet`
 
 Current workflow slices:
 
@@ -25,6 +26,7 @@ Current workflow slices:
 - P0.0a Current Chat Review And Handoff: completed.
 - P0.1 Runtime Health Baseline: completed.
 - P1 prep metadata: completed as workflow-only updates.
+- P1 post-commit re-sync: completed as workflow-only updates.
 
 Push status:
 
@@ -37,3 +39,4 @@ Access honesty:
 - Current Codex chat is available in this session.
 - Shared ChatGPT page was reviewed through public shared-page extraction.
 - No browser-applied GPT feedback has been captured for this branch yet.
+- P1 browser request is prepared locally but has not been pasted or captured.

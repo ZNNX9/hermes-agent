@@ -119,7 +119,7 @@ agent: Codex
 model_or_surface: local Codex CLI
 repo_path: /Users/richardzhang/.hermes/hermes-agent
 branch: codex/hermes-os-p0-workflow-backbone
-commit: pending before local commit
+commit: 37b36b6e2
 
 scope:
   requested: >
@@ -206,4 +206,97 @@ remaining_risks:
   - Browser LLM request is prepared but not sent; no browser feedback exists for P1 yet.
   - Branch remains unpushed while the queued Hermes workflow batch continues.
 next_recommended_task: Send the prepared advisory prompt or explicitly start P1
+```
+
+## P1 Post-Commit Re-Sync Receipt
+
+```yaml
+task_id: P1 Post-Commit Re-Sync
+status: completed
+agent: Codex
+model_or_surface: local Codex CLI
+repo_path: /Users/richardzhang/.hermes/hermes-agent
+branch: codex/hermes-os-p0-workflow-backbone
+commit: pending before local commit
+
+scope:
+  requested: >
+    Review the update and continue with richard-ai-workflow.
+  completed: >
+    Re-synced P1 workflow state after commit 37b36b6e2, added browser response
+    and UI issue ledgers, and added a lightweight lock file that keeps P1
+    runtime work blocked until explicit Richard approval.
+  out_of_scope_not_done: >
+    Did not send the browser LLM request, capture browser feedback, start P1
+    runtime code, edit tests, change config, or push.
+
+files:
+  read:
+    - .agent/PROJECT_STATE.md
+    - .agent/BRANCH_LOG.md
+    - .agent/CODEX_REPORT.md
+    - .agent/TASK_QUEUE.md
+  changed:
+    - .agent/PROJECT_STATE.md
+    - .agent/BRANCH_LOG.md
+    - .agent/CODEX_REPORT.md
+    - .agent/TASK_QUEUE.md
+  created:
+    - .agent/LOCKS.json
+    - .agent/browser-loop/RESPONSES.md
+    - .agent/browser-loop/UI_ISSUES.md
+  deleted: []
+  not_touched_unrelated:
+    - patrol_note.py
+    - patrol_scan.py
+    - research_output.md
+    - scan_patrol.py
+    - scan_projects.py
+    - scan_unread.py
+    - sessions.db
+    - tests/gateway/test_agent_cache_management.py
+    - tests/gateway/test_telegram_local_gemma_route.py
+    - tmp_scan.py
+    - update_notes.py
+
+commands:
+  - command: git diff --check
+    purpose: Verify docs-only diff has no whitespace errors
+    result: passed
+    evidence: no output, exit 0
+  - command: python3 -m json.tool .agent/LOCKS.json
+    purpose: Verify lock metadata is valid JSON
+    result: passed
+    evidence: JSON parsed and printed
+  - command: rg -n 'L-001-p1-runtime-not-started|no-response-captured|No browser operation was attempted|P1 prep commit `37b36b6e2`|commit: 37b36b6e2' .agent
+    purpose: Verify P1 lock, browser-response honesty, and commit references
+    result: passed
+    evidence: matched LOCKS, CODEX_REPORT, TASK_QUEUE, RESPONSES, and UI_ISSUES
+
+security:
+  secrets_read: false
+  secrets_printed: false
+  env_files_touched: false
+  network_exposure_changed: false
+  deployment_changed: false
+  destructive_git_used: false
+
+policy:
+  sensitivity_level: S1
+  risk_level: R1
+  richard_approval_required: false
+  approval_reference: latest Richard instruction plus richard-ai-workflow scope
+
+validation:
+  tests: skipped; workflow-only metadata update
+  lint: passed for JSON metadata via python3 -m json.tool
+  build: skipped; no build target affected
+  smoke: skipped; no runtime path changed
+  receipt_check: passed
+
+remaining_risks:
+  - P1 runtime implementation still needs explicit Richard approval.
+  - Browser request remains prepared-not-sent.
+  - Branch remains unpushed while the queued Hermes workflow batch continues.
+next_recommended_task: Decide whether to send advisory prompt or start P1
 ```

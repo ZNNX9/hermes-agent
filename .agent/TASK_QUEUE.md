@@ -163,8 +163,13 @@ Required context before implementation:
 - `.agent/AGENT_ROLES.md`
 - `.agent/EVIDENCE_RECEIPT_SCHEMA.md`
 - `.agent/REVIEW_CHECKLIST.md`
+- `.agent/LOCKS.json`
 - `.agent/RESUME_PACKETS/2026-06-12-p1-deterministic-model-router.md`
+- `.agent/browser-loop/REQUESTS.md`
+- `.agent/browser-loop/RESPONSES.md`
+- `.agent/browser-loop/UI_ISSUES.md`
 - P0.1 commit `c7979d945`
+- P1 prep commit `37b36b6e2`
 
 Candidate acceptance gates:
 
@@ -184,3 +189,4 @@ Stop conditions:
   production runtime config.
 - P1 requires provider behavior changes outside the approved file set.
 - P1 conflicts with unrelated uncommitted files.
+- `.agent/LOCKS.json` marks the P1 runtime lock active.
