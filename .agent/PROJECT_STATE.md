@@ -21,6 +21,33 @@ Runtime changes: none
 Tests/dependencies/CI changes: none
 Secrets/app config changes: none
 
+## Current Chat Re-Sync
+
+Ticket: P0.0a Current Chat Review And Handoff
+Status: completed
+Reviewed sources:
+
+- Current Codex chat through Richard's instruction to review the update and
+  continue with `$richard-ai-workflow`.
+- Previously supplied ChatGPT shared chat URL via public shared-page extract.
+- Local `.agent` project state and task queue.
+
+Access honesty:
+
+- ChatGPT shared content was reviewed as a public shared-page extract, not as a
+  live browser session.
+- No ChatGPT branch, project, folder, memory, or new session was created.
+- No browser feedback was pasted or captured in a live ChatGPT UI during this
+  slice.
+
+Drift result:
+
+- The plan remains an upgrade on top of the existing Hermes system, not a
+  rewrite.
+- GPT chat remains an advisory strategy/review source, not the authority or
+  executor.
+- P0.1 remains queued as a separate runtime-health ticket.
+
 ## Source-Of-Truth Order
 
 1. Latest explicit Richard instruction.

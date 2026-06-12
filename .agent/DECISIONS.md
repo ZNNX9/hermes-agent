@@ -40,6 +40,25 @@ ChatGPT, Claude, Gemini, DeepSeek, and other browser LLM plans are review or
 planning inputs. They are not authoritative unless captured into `.agent`,
 checked against repo state, and accepted by Richard or Codex under policy.
 
+### D-007: This Is An Existing-System Upgrade
+
+The Hermes OS effort upgrades the existing Hermes repository and runtime
+ecosystem. It does not replace Hermes with a new agent system. New workflow,
+diagnostics, routing, and evidence layers should integrate with existing CLI,
+gateway, profile, kanban, skill, and plugin surfaces wherever practical.
+
+### D-008: GPT Chat Is A Review Source, Not A Controller
+
+The shared GPT chat can supply strategy, critique, and prompts. Its useful
+parts must be converted into durable `.agent` records before they guide work.
+GPT chat does not directly control Hermes, approve high-risk actions, or prove
+local execution.
+
+### D-009: Runtime Work Starts As A Separate Ticket
+
+P0.1 may touch runtime behavior, tests, CLI surface, diagnostics, or app config.
+It must start from its own task card, approved file set, and verification plan.
+
 ## Open Decisions
 
 - Exact P0.1 file set and CLI surface.

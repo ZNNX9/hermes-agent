@@ -25,6 +25,26 @@ Not approved:
 - Deployment or network exposure changes.
 - Destructive git operations.
 
+### A-002: P0.0a Current Chat Review And Handoff
+
+Approved by: Richard
+Date: 2026-06-12
+Scope:
+
+- Review the P0.0 update against the current Codex chat and previously supplied
+  GPT shared-chat context.
+- Continue with `$richard-ai-workflow`.
+- Record drift, access honesty, and the next bounded handoff under `.agent`.
+
+Not approved:
+
+- Runtime code changes.
+- Tests/dependencies/CI changes.
+- Secrets or app config changes.
+- Deployment or network exposure changes.
+- Claiming a browser LLM response was captured unless a live browser action
+  actually happened.
+
 ## Required Future Approvals
 
 Richard approval is required before:

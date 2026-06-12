@@ -59,6 +59,34 @@ Acceptance:
 - Git diff is limited to `.agent/`.
 - Local commit records P0.0 if verification passes.
 
+### P0.0a Current Chat Review And Handoff
+
+Status: completed
+Owner: Codex
+Scope: `.agent/` re-sync metadata and handoff packet only
+Allowed files:
+
+- `.agent/PROJECT_STATE.md`
+- `.agent/TASK_QUEUE.md`
+- `.agent/DECISIONS.md`
+- `.agent/APPROVALS.md`
+- `.agent/BRANCH_LOG.md`
+- `.agent/CHAT_HANDOFFS/2026-06-12-current-chat-review.md`
+- `.agent/browser-loop/FEEDBACK_PACKETS.md`
+
+Review result:
+
+- Current chat clarified that the work is an existing-system upgrade, not a
+  rebuild.
+- GPT chat is advisory strategy/review context, not the master planner.
+- P0.1 should stay a separate runtime-health ticket.
+
+Acceptance:
+
+- Current-chat drift is recorded.
+- Browser/GPT access honesty is explicit.
+- No runtime/test/dependency/CI/secrets files changed.
+
 ## Next
 
 ### P0.1 Runtime Health Baseline
