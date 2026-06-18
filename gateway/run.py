@@ -9010,20 +9010,30 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
             }
             await self.hooks.emit("agent:start", hook_ctx)
 
-            # Run the agent
-            agent_result = await self._run_agent(
-                message=message_text,
-                context_prompt=context_prompt,
-                history=history,
+            from gateway.group_wisdom_bridge import try_group_wisdom_result
+
+            group_wisdom_result = await try_group_wisdom_result(
+                text=persist_user_message or message_text,
                 source=source,
-                session_id=session_entry.session_id,
-                session_key=session_key,
-                run_generation=run_generation,
-                event_message_id=self._reply_anchor_for_event(event),
-                channel_prompt=event.channel_prompt,
-                persist_user_message=persist_user_message,
-                persist_user_timestamp=persist_user_timestamp,
+                history=history,
             )
+            if group_wisdom_result is not None:
+                agent_result = group_wisdom_result
+            else:
+                # Run the agent
+                agent_result = await self._run_agent(
+                    message=message_text,
+                    context_prompt=context_prompt,
+                    history=history,
+                    source=source,
+                    session_id=session_entry.session_id,
+                    session_key=session_key,
+                    run_generation=run_generation,
+                    event_message_id=self._reply_anchor_for_event(event),
+                    channel_prompt=event.channel_prompt,
+                    persist_user_message=persist_user_message,
+                    persist_user_timestamp=persist_user_timestamp,
+                )
 
             # Stop persistent typing indicator now that the agent is done
             try:
