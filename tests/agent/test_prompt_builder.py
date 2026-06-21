@@ -30,6 +30,7 @@ from agent.prompt_builder import (
     PARALLEL_TOOL_CALL_GUIDANCE,
     GOOGLE_MODEL_OPERATIONAL_GUIDANCE,
     MEMORY_GUIDANCE,
+    MODEL_ROUTING_GROUNDING_GUIDANCE,
     SESSION_SEARCH_GUIDANCE,
     PLATFORM_HINTS,
     WSL_ENVIRONMENT_HINT,
@@ -53,6 +54,19 @@ class TestGuidanceConstants:
     def test_session_search_guidance_is_simple_cross_session_recall(self):
         assert "relevant cross-session context exists" in SESSION_SEARCH_GUIDANCE
         assert "recent turns of the current session" not in SESSION_SEARCH_GUIDANCE
+
+    def test_model_routing_guidance_requires_verified_catalog_models(self):
+        text = MODEL_ROUTING_GROUNDING_GUIDANCE.lower()
+        assert "do not invent model or provider names" in text
+        assert "verified" in text
+        assert "live hermes config" in text
+        assert "provider catalog" in text
+
+    def test_model_routing_guidance_distinguishes_workflows_from_model_ids(self):
+        text = MODEL_ROUTING_GROUNDING_GUIDANCE.lower()
+        assert "unverified candidate" in text
+        assert "group-of-wisdom" in text
+        assert "executable provider model ids" in text
 
 
 # =========================================================================
@@ -1545,5 +1559,4 @@ class TestParallelToolCallGuidance:
 # =========================================================================
 # Budget warning history stripping
 # =========================================================================
-
 

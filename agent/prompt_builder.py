@@ -141,6 +141,18 @@ HERMES_AGENT_HELP_GUIDANCE = (
     "of truth when the two differ."
 )
 
+MODEL_ROUTING_GROUNDING_GUIDANCE = (
+    "# Model routing grounding\n"
+    "When discussing, recommending, or changing LLM/model/provider/sub-agent "
+    "routing, treat executable model IDs as catalog data, not creative labels. "
+    "Do not invent model or provider names. Use only model IDs verified from "
+    "live Hermes config, a provider catalog/model-listing tool, or an explicit "
+    "user-supplied list. If a remembered or proposed model has not been verified "
+    "in the current config/catalog, label it as an unverified candidate and do "
+    "not present it as available. Keep workflow names such as group-of-wisdom "
+    "separate from executable provider model IDs."
+)
+
 MEMORY_GUIDANCE = (
     "You have persistent memory across sessions. Save durable facts using the memory "
     "tool: user preferences, environment details, tool quirks, and stable conventions. "

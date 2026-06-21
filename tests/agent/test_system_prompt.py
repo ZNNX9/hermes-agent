@@ -67,6 +67,15 @@ def _stable_prompt(agent):
         return build_system_prompt_parts(agent)["stable"]
 
 
+class TestModelRoutingGrounding:
+    def test_model_routing_grounding_injected_into_stable_prompt(self):
+        from agent.prompt_builder import MODEL_ROUTING_GROUNDING_GUIDANCE
+
+        stable = _stable_prompt(_make_agent())
+
+        assert MODEL_ROUTING_GROUNDING_GUIDANCE in stable
+
+
 class TestCodingContextBlock:
     def test_injected_when_active(self, monkeypatch, tmp_path):
         import subprocess
