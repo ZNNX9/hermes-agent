@@ -1,0 +1,16 @@
+project: TradeBot
+description: Starter managed-agent policy for bounded TradeBot work.
+forbidden_actions:
+  - broker access
+  - live trading
+  - secrets editing
+  - auto-merge
+forbidden_files:
+  - ".env"
+  - ".env.*"
+  - "**/.env"
+  - "**/.env.*"
+  - "config/secrets*.yaml"
+  - "**/secrets/**"
+  - "**/broker/**"
+  - "**/live_trading/**"

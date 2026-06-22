@@ -1,0 +1,14 @@
+project: KidsAgents
+description: Starter managed-agent policy for child-safe sandboxed agent work.
+forbidden_actions:
+  - raw shell
+  - parent workspace access
+  - public deploy
+  - dependency installs without approval
+forbidden_files:
+  - "../*"
+  - "../**"
+  - "**/.env"
+  - "**/.env.*"
+  - "**/parent-workspace/**"
+  - "**/secrets/**"

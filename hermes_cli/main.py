@@ -300,6 +300,7 @@ from hermes_cli.subcommands.pairing import build_pairing_parser
 from hermes_cli.subcommands.plugins import build_plugins_parser
 from hermes_cli.subcommands.mcp import build_mcp_parser
 from hermes_cli.subcommands.claw import build_claw_parser
+from hermes_cli.task_cli import build_task_parser
 
 
 def _require_tty(command_name: str) -> None:
@@ -4197,6 +4198,13 @@ def cmd_kanban(args):
     from hermes_cli.kanban import kanban_command
 
     return kanban_command(args)
+
+
+def cmd_task(args):
+    """Managed-agent task queue."""
+    from hermes_cli.task_cli import task_command
+
+    raise SystemExit(task_command(args))
 
 
 def cmd_hooks(args):
@@ -11120,7 +11128,7 @@ _BUILTIN_SUBCOMMANDS = frozenset(
         "model", "pairing", "plugins", "portal", "postinstall", "profile", "proxy",
         "prompt-size",
         "send", "sessions", "setup",
-        "skills", "slack", "status", "tools", "uninstall", "update",
+        "skills", "slack", "status", "task", "tools", "uninstall", "update",
         "version", "webhook", "whatsapp", "whatsapp-cloud", "chat", "secrets", "security",
         # Help-ish invocations — plugin commands not being listed in
         # top-level --help is an acceptable trade-off for skipping an
@@ -11853,6 +11861,12 @@ def main():
 
     kanban_parser = _build_kanban_parser(subparsers)
     kanban_parser.set_defaults(func=cmd_kanban)
+
+    # =========================================================================
+    # task command — managed-agent task queue MVP
+    # =========================================================================
+    task_parser = build_task_parser(subparsers)
+    task_parser.set_defaults(func=cmd_task)
 
     # =========================================================================
     # hooks command — shell-hook inspection and management

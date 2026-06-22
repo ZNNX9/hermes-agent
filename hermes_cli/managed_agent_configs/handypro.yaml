@@ -1,0 +1,13 @@
+project: HandyPro
+description: Starter managed-agent policy for app and QA workflow tasks.
+forbidden_actions:
+  - production deploy
+  - secrets editing
+  - auto-merge
+forbidden_files:
+  - ".env"
+  - ".env.*"
+  - "**/.env"
+  - "**/.env.*"
+  - "**/secrets/**"
+  - "**/*private*"
