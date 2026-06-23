@@ -444,6 +444,7 @@ def _create_app(adapter: APIServerAdapter) -> web.Application:
     app.router.add_get("/health", adapter._handle_health)
     app.router.add_get("/health/detailed", adapter._handle_health_detailed)
     app.router.add_get("/v1/health", adapter._handle_health)
+    app.router.add_post("/v1/ping", adapter._handle_ping)
     app.router.add_get("/v1/models", adapter._handle_models)
     app.router.add_get("/v1/capabilities", adapter._handle_capabilities)
     app.router.add_get("/v1/skills", adapter._handle_skills)
@@ -611,6 +612,45 @@ class TestHealthDetailedEndpoint:
 
 
 # ---------------------------------------------------------------------------
+# /v1/ping endpoint
+# ---------------------------------------------------------------------------
+
+
+class TestPingEndpoint:
+    @pytest.mark.asyncio
+    async def test_ping_returns_receipt_without_running_agent(self, auth_adapter):
+        app = _create_app(auth_adapter)
+        async with TestClient(TestServer(app)) as cli:
+            with patch.object(auth_adapter, "_run_agent", new_callable=AsyncMock) as mock_run:
+                resp = await cli.post(
+                    "/v1/ping",
+                    headers={
+                        "Authorization": "Bearer sk-secret",
+                        "X-Hermes-Session-Id": "codex-hermes-healthcheck",
+                    },
+                    json={"message": "ping hermes", "request_id": "req-codex-1"},
+                )
+                assert resp.status == 200
+                data = await resp.json()
+
+        assert data["object"] == "hermes.api_server.ping"
+        assert data["status"] == "received"
+        assert data["reply"] == "pong"
+        assert data["request_id"] == "req-codex-1"
+        assert data["session_id"] == "codex-hermes-healthcheck"
+        assert data["model"] == "hermes-agent"
+        mock_run.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_ping_requires_auth_when_key_configured(self, auth_adapter):
+        app = _create_app(auth_adapter)
+        async with TestClient(TestServer(app)) as cli:
+            resp = await cli.post("/v1/ping", json={"message": "ping hermes"})
+
+        assert resp.status == 401
+
+
+# ---------------------------------------------------------------------------
 # /v1/models endpoint
 # ---------------------------------------------------------------------------
 
@@ -705,8 +745,10 @@ class TestCapabilitiesEndpoint:
             assert data["features"]["chat_completions"] is True
             assert data["features"]["run_status"] is True
             assert data["features"]["run_events_sse"] is True
+            assert data["features"]["ping_receipt"] is True
             assert data["features"]["session_continuity_header"] == "X-Hermes-Session-Id"
             assert data["endpoints"]["run_status"]["path"] == "/v1/runs/{run_id}"
+            assert data["endpoints"]["ping"] == {"method": "POST", "path": "/v1/ping"}
             assert data["endpoints"]["skills"] == {"method": "GET", "path": "/v1/skills"}
             assert data["endpoints"]["toolsets"] == {"method": "GET", "path": "/v1/toolsets"}
 

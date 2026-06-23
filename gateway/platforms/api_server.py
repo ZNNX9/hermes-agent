@@ -8,6 +8,7 @@ Exposes an HTTP server with endpoints:
 - DELETE /v1/responses/{response_id} — Delete a stored response
 - GET  /v1/models                  — lists hermes-agent as an available model
 - GET  /v1/capabilities            — machine-readable API capabilities for external UIs
+- POST /v1/ping                    — authenticated receipt check without running the agent
 - GET  /api/sessions               — list client-visible Hermes sessions
 - POST /api/sessions               — create an empty Hermes session
 - GET/PATCH/DELETE /api/sessions/{session_id} — read/update/delete a session
@@ -1118,6 +1119,46 @@ class APIServerAdapter(BasePlatformAdapter):
             "pid": os.getpid(),
         })
 
+    @staticmethod
+    def _coerce_ping_request_id(value: Any) -> str:
+        """Return a bounded caller-visible ping request id."""
+        if value is None:
+            return f"ping_{uuid.uuid4().hex}"
+        request_id = re.sub(r"[\r\n\x00]", "", str(value).strip())[:128]
+        return request_id or f"ping_{uuid.uuid4().hex}"
+
+    async def _handle_ping(self, request: "web.Request") -> "web.Response":
+        """POST /v1/ping — authenticated receipt check that never runs the agent."""
+        auth_err = self._check_auth(request)
+        if auth_err:
+            return auth_err
+
+        body: Dict[str, Any] = {}
+        if request.can_read_body:
+            try:
+                parsed = await request.json()
+            except Exception:
+                return web.json_response(_openai_error("Invalid JSON in request body"), status=400)
+            if not isinstance(parsed, dict):
+                return web.json_response(_openai_error("Request body must be a JSON object"), status=400)
+            body = parsed
+
+        request_id = self._coerce_ping_request_id(
+            body.get("request_id") or request.headers.get("X-Request-Id")
+        )
+        session_id = request.headers.get("X-Hermes-Session-Id", "").strip() or None
+
+        return web.json_response({
+            "object": "hermes.api_server.ping",
+            "status": "received",
+            "reply": "pong",
+            "request_id": request_id,
+            "session_id": session_id,
+            "platform": "hermes-agent",
+            "model": self._model_name,
+            "created": int(time.time()),
+        })
+
     async def _handle_models(self, request: "web.Request") -> "web.Response":
         """GET /v1/models — return hermes-agent as an available model."""
         auth_err = self._check_auth(request)
@@ -1178,6 +1219,7 @@ class APIServerAdapter(BasePlatformAdapter):
                 "run_events_sse": True,
                 "run_stop": True,
                 "run_approval_response": True,
+                "ping_receipt": True,
                 "tool_progress_events": True,
                 "approval_events": True,
                 "session_resources": True,
@@ -1197,6 +1239,7 @@ class APIServerAdapter(BasePlatformAdapter):
             "endpoints": {
                 "health": {"method": "GET", "path": "/health"},
                 "health_detailed": {"method": "GET", "path": "/health/detailed"},
+                "ping": {"method": "POST", "path": "/v1/ping"},
                 "models": {"method": "GET", "path": "/v1/models"},
                 "chat_completions": {"method": "POST", "path": "/v1/chat/completions"},
                 "responses": {"method": "POST", "path": "/v1/responses"},
@@ -4248,6 +4291,7 @@ class APIServerAdapter(BasePlatformAdapter):
             self._app.router.add_get("/health", self._handle_health)
             self._app.router.add_get("/health/detailed", self._handle_health_detailed)
             self._app.router.add_get("/v1/health", self._handle_health)
+            self._app.router.add_post("/v1/ping", self._handle_ping)
             self._app.router.add_get("/v1/models", self._handle_models)
             self._app.router.add_get("/v1/capabilities", self._handle_capabilities)
             self._app.router.add_get("/v1/skills", self._handle_skills)
